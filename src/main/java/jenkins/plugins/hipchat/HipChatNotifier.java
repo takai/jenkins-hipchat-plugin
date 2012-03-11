@@ -76,7 +76,7 @@ public class HipChatNotifier extends Notifier {
    public HipChatService newHipChatService(String room) {
       return new StandardHipChatService(getAuthToken(), room == null ? getRoom() : room, "Jenkins");
    }
-   
+
    @Override
    public boolean perform(AbstractBuild<?,?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
        return true;
@@ -143,11 +143,13 @@ public class HipChatNotifier extends Notifier {
    public static class HipChatJobProperty extends hudson.model.JobProperty<AbstractProject<?, ?>> {
       private String room;
       private boolean startNotification;
+      private boolean notifyPrebuild;
 
       @DataBoundConstructor
-      public HipChatJobProperty(String room, boolean startNotification) {
+      public HipChatJobProperty(String room, boolean startNotification, boolean notifyPrebuild) {
          this.room = room;
          this.startNotification = startNotification;
+	 this.notifyPrebuild = notifyPrebuild;
       }
 
       @Exported
@@ -156,13 +158,18 @@ public class HipChatNotifier extends Notifier {
       }
 
       @Exported
-      public boolean getStartNotification() {
+      public boolean isStartNotification() {
          return startNotification;
+      }
+
+      @Exported
+      public boolean isNotifyPrebuild() {
+         return notifyPrebuild;
       }
 
       @Override
       public boolean prebuild(AbstractBuild<?, ?> build, BuildListener listener) {
-         if(startNotification) {
+         if(startNotification && notifyPrebuild) {
             Map<Descriptor<Publisher>, Publisher> map = build.getProject().getPublishersList().toMap();
             for(Publisher publisher : map.values()) {
                if(publisher instanceof HipChatNotifier) {
@@ -187,7 +194,11 @@ public class HipChatNotifier extends Notifier {
 
          @Override
          public HipChatJobProperty newInstance(StaplerRequest sr, JSONObject formData) throws hudson.model.Descriptor.FormException {
-            return new HipChatJobProperty(sr.getParameter("hipChatProjectRoom"), sr.getParameter("hipChatStartNotification") != null);
+            String hipChatProjectRoom = sr.getParameter("hipChatProjectRoom");
+            boolean hipChatStartNotification = sr.getParameter("hipChatStartNotification") != null;
+            boolean hipChatNotifyPrebuild = sr.getParameter("hipChatNotifyPrebuild") != null;
+
+	    return new HipChatJobProperty(hipChatProjectRoom, hipChatStartNotification, hipChatNotifyPrebuild);
          }
       }
    }
